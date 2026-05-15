@@ -1,0 +1,95 @@
+name: Build iOS Dev IPA
+
+on:
+  workflow_dispatch:
+    inputs: 
+      zip_url:
+        description: "URL to the game zip"
+        default: ""
+        required: true
+        type: string
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        
+     - name: Validate IPA URL
+        run: |
+          curl -L -r 0-1023 -o sample.part "${{ inputs.zip_url }}" > /dev/null 2>&1
+          
+          file_type=$(file --mime-type -b sample.part)
+
+          if [["$file_type" != "application/zip" ]]; then
+            echo "::error::Validation failed: The file is not a valid ZIP file. Detected type: $file_type."
+            exit 1
+          fi
+
+      - name: Setup Ren'Py
+        uses: remarkablegames/setup-renpy@v1
+        with:
+          renios: true
+          
+     - name: Dowload & Extract
+       run : |
+          wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
+          unzip temp.zip "*/game/*"
+          mv "$(find temp_extract -type d -name game | head -n 1)" .
+              
+      - name: Generate Xcode Project
+        run: |
+          renpy-launcher ios_create . ../ios-build
+          
+      - name: Build Xcode Project (Unsigned)
+        run: |
+          cd ../ios-build
+          
+          XCODEPROJ=$(find . -name "*.xcodeproj" | head -n 1)
+          SCHEME=$(xcodebuild -list -project "$XCODEPROJ" -json | jq -r '.project.schemes[0]')
+          
+          echo "Projekt: $XCODEPROJ"
+          echo "Scheme: $SCHEME"
+          
+          if [ "$SCHEME" = "null" ] || [ -z "$SCHEME" ]; then
+            echo "Fehler: Kein Scheme!"
+            exit 1
+          fi
+          
+          xcodebuild clean build \
+            -project "$XCODEPROJ" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            SYMROOT="$(pwd)/build"
+            
+      - name: Package to Dev IPA
+        run: |
+          cd ../ios-build
+          
+          APP_DIR=$(find build/Release-iphoneos -name "*.app" | head -n 1)
+          
+          if [ -z "$APP_DIR" ]; then
+            echo "Fehler: Keine .app!"
+            exit 1
+          fi
+          
+          # Signatur
+          codesign -s - -f --deep "$APP_DIR"
+          
+          
+          mkdir -p Payload
+          cp -R "$APP_DIR" Payload/
+          zip -qr "$GITHUB_WORKSPACE/100faust-chan.ipa" Payload
+          
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Dev-IPA
+          path: game.ipa
+          retention-days: 7
