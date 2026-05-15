@@ -33,7 +33,7 @@ jobs:
           renios: true
           
       - name: Dowload & Extract
-       run : |
+        run : |
           wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
           unzip temp.zip "*/game/*"
           mv "$(find temp_extract -type d -name game | head -n 1)" .
