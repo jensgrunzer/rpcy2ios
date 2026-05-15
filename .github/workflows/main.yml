@@ -20,51 +20,41 @@ jobs:
         uses: remarkablegames/setup-renpy@v1
         with:
           renios: true
-
+          
       - name: Download & Extract & Cleanup
         run: |
-          wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
-
+          wget --user-agent="Mozilla/5.0" "${{ inputs.zip_url }}" --no-verbose -O temp.zip
           mkdir -p extract_dir
           unzip -q temp.zip -d extract_dir
           GAME_DIR=$(find extract_dir -type d -name game -print -quit)
-
           if [ -z "$GAME_DIR" ]; then
-            echo "::error::Validation failed: No game folder found!"
+            echo "FEHLER: Kein 'game'-Ordner im ZIP gefunden!"
             exit 1
           fi
-
           mkdir -p wdir
           mv "$GAME_DIR" wdir/game
-
           rm -rf extract_dir temp.zip
-    
           find wdir/game -type d -name "cache" -exec rm -rf {} +
           find wdir/game -type d -name "saves" -exec rm -rf {} +
           find wdir/game -name ".DS_Store" -type f -delete
-
           ls -la wdir
               
       - name: Generate Xcode Project
         run: |
-
           renpy-launcher ios_create wdir ../ios-build
           
       - name: Build Xcode Project (Unsigned)
         run: |
           cd ../ios-build
-          
           XCODEPROJ=$(find . -name "*.xcodeproj" | head -n 1)
           SCHEME=$(xcodebuild -list -project "$XCODEPROJ" -json | jq -r '.project.schemes[0]')
-          
           echo "Projekt: $XCODEPROJ"
           echo "Scheme: $SCHEME"
-          
+          echo "XCODEPROJ=$XCODEPROJ" >> "$GITHUB_ENV"
           if [ "$SCHEME" = "null" ] || [ -z "$SCHEME" ]; then
             echo "Fehler: Kein Scheme!"
             exit 1
           fi
-          
           xcodebuild clean build \
             -project "$XCODEPROJ" \
             -scheme "$SCHEME" \
@@ -76,27 +66,25 @@ jobs:
             SYMROOT="$(pwd)/build"
             
       - name: Package to Dev IPA
+        id: package
         run: |
           cd ../ios-build
-          
           APP_DIR=$(find build/Release-iphoneos -name "*.app" | head -n 1)
-          
           if [ -z "$APP_DIR" ]; then
             echo "Fehler: Keine .app!"
             exit 1
           fi
-          
-          # Signatur
           codesign -s - -f --deep "$APP_DIR"
-          
-          
+          PROJECT_NAME=$(basename "$XCODEPROJ" .xcodeproj)
           mkdir -p Payload
           cp -R "$APP_DIR" Payload/
-          zip -qr "$GITHUB_WORKSPACE/game.ipa" Payload
+          IPA_NAME="${PROJECT_NAME}.ipa"
+          zip -qr "$GITHUB_WORKSPACE/$IPA_NAME" Payload
+          echo "ipa_name=$IPA_NAME" >> "$GITHUB_OUTPUT"
           
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: iOS-Dev-IPA
-          path: game.ipa
+          name: iOS-Dev-${{ steps.package.outputs.ipa_name }}
+          path: ${{ steps.package.outputs.ipa_name }}
           retention-days: 7
