@@ -20,25 +20,30 @@ jobs:
         uses: remarkablegames/setup-renpy@v1
         with:
           renios: true
-          
+
       - name: Download & Extract & Cleanup
-        run : |
-        
+        run: |
           wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
-          
-          unzip temp.zip "*/game/*"
-                
+
+          mkdir -p extract_dir
+          unzip -q temp.zip -d extract_dir
+          GAME_DIR=$(find extract_dir -type d -name game -print -quit)
+
+          if [ -z "$GAME_DIR" ]; then
+            echo "::error::Validation failed: No game folder found!"
+            exit 1
+          fi
+
           mkdir -p wdir
-                  
-          mv "$(find . -type d -name game | head -n 1)" wdir/          
-        
-          rm -rf temp.zip
-          
+          mv "$GAME_DIR" wdir/game
+
+          rm -rf extract_dir temp.zip
+    
           find wdir/game -type d -name "cache" -exec rm -rf {} +
           find wdir/game -type d -name "saves" -exec rm -rf {} +
           find wdir/game -name ".DS_Store" -type f -delete
-          
-          ls -a wdir
+
+          ls -la wdir
               
       - name: Generate Xcode Project
         run: |
