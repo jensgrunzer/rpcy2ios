@@ -1,5 +1,4 @@
 name: Build iOS Dev IPA
-
 on:
   workflow_dispatch:
     inputs: 
@@ -12,12 +11,11 @@ on:
 jobs:
   build-ios:
     runs-on: macos-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         
-     - name: Validate IPA URL
+      - name: Validate IPA URL
         run: |
           curl -L -r 0-1023 -o sample.part "${{ inputs.zip_url }}" > /dev/null 2>&1
           
@@ -33,7 +31,7 @@ jobs:
         with:
           renios: true
           
-     - name: Dowload & Extract
+      - name: Dowload & Extract
        run : |
           wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
           unzip temp.zip "*/game/*"
