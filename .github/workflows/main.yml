@@ -21,12 +21,29 @@ jobs:
         with:
           renios: true
           
-      - name: Dowload & Extract
+      - name: Download & Extract & Cleanup
         run : |
+        
           wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
+          
           unzip temp.zip "*/game/*"
-          mv "$(find . -type d -name game | head -n 1)" .
-          ls -a
+                
+          mkdir -p wdir
+                  
+          mv "$(find . -type d -name game | head -n 1)" wdir/          
+        
+          rm -rf temp.zip
+          
+          find wdir/game -type d -name "cache" -exec rm -rf {} +
+          find wdir/game -type d -name "saves" -exec rm -rf {} +
+          find wdir/game -name ".DS_Store" -type f -delete
+          
+          ls -a wdir
+              
+      - name: Generate Xcode Project
+        run: |
+
+          renpy-launcher ios_create wdir ../ios-build
               
       - name: Generate Xcode Project
         run: |
