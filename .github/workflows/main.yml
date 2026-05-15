@@ -22,7 +22,7 @@ jobs:
           
           file_type=$(file --mime-type -b sample.part)
 
-          if [["$file_type" != "application/zip" ]]; then
+          if [[ "$file_type" != "application/zip" ]]; then
             echo "::error::Validation failed: The file is not a valid ZIP file. Detected type: $file_type."
             exit 1
           fi
@@ -36,7 +36,7 @@ jobs:
         run : |
           wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
           unzip temp.zip "*/game/*"
-          mv "$(find temp_extract -type d -name game | head -n 1)" .
+          mv "$(find . -type d -name game | head -n 1)" .
               
       - name: Generate Xcode Project
         run: |
