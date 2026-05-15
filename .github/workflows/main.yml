@@ -44,10 +44,6 @@ jobs:
         run: |
 
           renpy-launcher ios_create wdir ../ios-build
-              
-      - name: Generate Xcode Project
-        run: |
-          renpy-launcher ios_create . ../ios-build
           
       - name: Build Xcode Project (Unsigned)
         run: |
