@@ -26,7 +26,7 @@ jobs:
           wget "${{ inputs.zip_url }}" --no-verbose -O temp.zip
           unzip temp.zip "*/game/*"
           mv "$(find . -type d -name game | head -n 1)" .
-          ls - a
+          ls -a
               
       - name: Generate Xcode Project
         run: |
